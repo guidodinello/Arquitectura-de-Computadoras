@@ -7,13 +7,23 @@ CODIGO_DESBORDAMIENTO EQU 4
 CODIGO_COMANDO_INVALIDO EQU 2
 CODIGO_NUEVO_COMANDO EQU 0
 
+; ver si deberia en vez de in ax, ENTRADA
+; hacer mov registro, ENTRADA
+; luego in ax, registro
+
+; las aritmeticas tienen todas la misma estructura
+; ver si se puede factorizar y que solo se distingan en la llamada a la operacion
+; jmp estructura_aritmeticas
+;	... add/sub/imul/ ...
+
 ENTRADA EQU 1
 PUERTO_SALIDA_DEFECTO EQU 2
-PUERTO_LOG_DEFECTO EQU 0x03
+PUERTO_LOG_DEFECTO EQU 3
 STACK_SIZE EQU 31
 
-stack DW DUP(STACK_SIZE) ?
-tope dw 0	; deberia ser db como el tamano es 31 podria usar un byte
+stack DW DUP(STACK_SIZE) 0
+stack_base equ stack
+tope dw 0  						; aca se podria usar un db
 
 DOBLE_STACK_SIZE EQU STACK_SIZE*2	; servira para chequear si la pila esta llena
 
@@ -25,47 +35,46 @@ puertoSalida dw PUERTO_SALIDA_DEFECTO
 	xor bx,bx
 	xor cx,cx
 	xor dx,dx
+	xor di,di
 	jmp main
 
 ; recibe el parametro en el registro AX
 pushStack proc
+	push bx
 	push di						; preservamos el valor de di
-	mov di, [tope]				; indice del ultimo elmento del stack
-	mov word ptr [stack+di],ax 	; stack[tope] = ax
-	inc word ptr [tope] 		; 
-	inc word ptr [tope]			; tope ++
+	mov di, [tope]	
+	mov bx, stack_base			; por alguna razon poniendo (ss:)[bp+di] funciona y (ds:)[stack+di] no y (ds:[bx+di]) tampoco. mi arreglo no deberia estar en ds??
+	mov [bx+di],ax 				; stack[tope] = ax
+	add word ptr [tope], 2
 	pop di
+	pop bx
 	ret
 pushStack endp
 
 ; retorna el resultado en el registro BX
 popStack proc
 	push di
-	dec word ptr [tope]			; 
-	dec word ptr [tope]			; tope --;
+	sub word ptr [tope], 2			; tope --;
 	mov di, [tope]
-	mov bx, [stack+di]			; ax = stack[tope]
+	mov bx, stack_base
+	mov bx, [bx+di]			; bx = stack[tope]
 	pop di
 	ret
 popStack endp
 
 ; recibe el parametro en el registro AX
-; retorna el resultado en DX::AX
+; retorna el resultado en BX
 factorial proc
 	cmp ax, 0			; n==0 ?
 	je paso_base		; return 1
-	push bx				; 
-	push ax				; 
 	dec ax				; n' = n-1
-	call FACT			; ax = factorial(n')
+	call factorial			; ax = factorial(n')
 	inc ax
-	pop bx
 	mov cx, ax
 	mul bx				; dx::ax = ax * bx
 	mov bx, ax
 	mov ax, cx
 	jmp fin_factorial				; return n * factorial(n')
-
 paso_base:
 	mov bx, 1			
 fin_factorial:
@@ -73,9 +82,6 @@ fin_factorial:
 factorial endp
 
 NUM:
-	push ax
-	push bx									; preservo valores de registros
-	push dx
 	in ax, ENTRADA							; leo parametro
 	mov dx, [puertoLog]						;
 	out dx, ax								; out en bitacora del parametro leido
@@ -89,9 +95,6 @@ exito_num:
 	mov ax, CODIGO_EXITO
 	out dx, ax							; out 16 : proceso exitoso
 fin_num:
-	pop dx
-	pop bx
-	pop ax
 	jmp main
 
 PORT:
@@ -132,14 +135,17 @@ TOP:
 	jmp fin_top
 exito_top:							; else
 	push di
+	push bx
 	mov di, [tope]					; di = tope
 	sub di, 2						; di = tope - 1
-	mov ax, [stack+di]				; ax = stack[tope]
+	mov bx, stack_base
+	mov ax, [bx+di]				; ax = stack[tope]
 	mov dx, [puertoSalida]			; dx = puertoSalida
 	out dx, ax						; out en salida del tope de la pila
 	mov ax, CODIGO_EXITO			; ax = 16
 	mov dx, [puertoLog] 			; dx = puertoLog
 	out dx, ax						; out 16 : proceso exitoso		
+	pop bx
 	pop di			
 fin_top:
 	push dx
@@ -147,26 +153,21 @@ fin_top:
 	jmp main
 
 DUMP:
-	push ax
-	push dx
-	push di
 	mov di, [tope]
+	mov bx, stack_base
 	mov dx, [puertoSalida]			; dx = puertoSalida, hacer esta asignacion aca evita estar repitiendola
 									; innecesariamente en cada iteracion del while
 while_dump:
 	cmp di, 0
 	je fin_dump						; index > 0 ?
-	sub di, 2						; 
-	mov ax, [stack+di]				; ax = stack[tope - 1]
+	sub di, 2	
+	mov ax, [bx+di]				; ax = stack[tope - 1]
 	out dx, ax						; out en salida del tope de la pila
 	jmp while_dump
 fin_dump:							; index <= 0
 	mov ax, CODIGO_EXITO			; ax = 16
 	mov dx, [puertoLog] 			; dx = puertoLog
 	out dx, ax						; out 16 : proceso exitoso		
-	pop di
-	pop dx
-	pop ax
 	jmp main
 
 _DUP:
@@ -241,9 +242,10 @@ fin_neg:
 	push ax
 	jmp main
 
-FACT:	; FUNCIONA MAL
+FACT:
 	push ax
 	push dx
+	push cx
 	mov dx, [puertoLog]				; dx = puertoLog
 	cmp word ptr [tope], 0			; if (tope == 0)
 	jne exito_fact
@@ -254,13 +256,17 @@ exito_fact:
 	push bx
 	call popStack			; bx = stack[tope]
 	mov ax, bx				; ax = bx
-	call factorial			; dx::ax = fact(ax)
-	call pushStack			; stack[tope] = ax
+	call factorial			; bx = fact(ax)
+	mov ax, bx
+	call pushStack			; stack[tope] = bx
+	mov dx, [puertoLog]		; el factorial modifica a dx
 	mov ax, CODIGO_EXITO	; ax = 16
 	out dx, ax				; out 16 : operacion exitosa
+	pop bx
 fin_fact:
-	pop ax
+	pop cx
 	pop dx
+	pop ax
 	jmp main
 
 SUM:
@@ -285,30 +291,235 @@ fin_sum:							; index <= 0
 	jmp main
 
 _ADD:
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_add
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_add
+	jmp fin_add
+un_elemento_add:
+	call popStack			; vacia la pila
+	jmp fin_add
+exito_add:
+	call popStack	; 
+	mov cx, bx 		; cx operando derecho
+	call popStack	; bx operando izquierdo
+	add bx, cx
+	mov ax, bx
+	call pushStack	; pushea el resultado de la suma
+	mov ax, CODIGO_EXITO
+	out dx, ax
+fin_add:
 	jmp main
 
 SUBSTRACT:
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_substract
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_substract
+	jmp fin_substract
+un_elemento_substract:
+	call popStack			; vacia la pila
+	jmp fin_substract
+exito_substract:
+	call popStack	; 
+	mov cx, bx 		; cx operando derecho
+	call popStack	; bx operando izquierdo
+	sub bx, cx
+	mov ax, bx
+	call pushStack	; pushea el resultado de la resta
+	mov ax, CODIGO_EXITO
+	out dx, ax
+fin_substract:
 	jmp main
 
 MULTIPLY:
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_multiply
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_multiply
+	jmp fin_multiply
+un_elemento_multiply:
+	call popStack			; vacia la pila
+	jmp fin_add
+exito_multiply:
+	xor dx, dx
+	call popStack
+	mov cx, bx		; cx operando derecho
+	call popStack
+	mov ax, bx		; ax operando izquierdo
+	imul cx			; ax = ax * cx
+	call pushStack	; pushea el resultado de la suma
+	mov dx, [puertoLog]
+	mov ax, CODIGO_EXITO
+	out dx, ax
+fin_multiply:
 	jmp main
 
-DIVIDE:
+DIVIDE:			; el tope va a la derecha
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_divide
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_divide
+	jmp fin_divide
+un_elemento_divide:
+	call popStack			; vacia la pila
+	jmp fin_divide
+exito_divide:
+	call popStack	; 
+	mov cx, bx 		; ax operando derecho
+	call popStack	; bx operando izquierdo
+	mov ax, bx
+	; quiero ax/cx pero idiv hace ax = ax/op
+	cmp ax, 0
+	jl dividendo_negativo
+	xor dx, dx			; si el dividendo es positivo cargo 0 en dx
+	jmp dividir
+dividendo_negativo:
+	mov dx, 0xffff		; si el dividendo es negativo cargo 0xffff en dx
+dividir:
+	idiv cx				; en ax queda el resultado de la division entera
+	call pushStack		; pushea ax
+	mov ax, CODIGO_EXITO
+	mov dx, [puertoLog]
+	out dx, ax
+fin_divide:
 	jmp main
 
 MOD:
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_mod
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_mod
+	jmp fin_mod
+un_elemento_mod:
+	call popStack			; vacia la pila
+	jmp fin_mod
+exito_mod:
+	call popStack	; 
+	mov cx, bx 		; cx operando derecho
+	call popStack	; bx operando izquierdo
+	mov ax, bx
+	; quiero ax%cx pero idiv hace dx = dx::ax % op
+calcular_mod:
+	idiv cx				; en ax queda el resultado de la division entera
+	call pushStack		; pushea ax
+	mov ax, CODIGO_EXITO
+	mov dx, [puertoLog]
+	out dx, ax
+mod_negativo:
+	mov dx, 0xffff		; si el dividendo es negativo cargo 0xffff en dx
+fin_mod:
 	jmp main
 
 _AND:
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_and
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_and
+	jmp fin_and
+un_elemento_and:
+	call popStack			; vacia la pila
+	jmp fin_and
+exito_and:
+	call popStack	; 
+	mov cx, bx 		; cx operando derecho
+	call popStack	; bx operando izquierdo
+	and bx, cx
+	mov ax, bx
+	call pushStack	; pushea el resultado del and
+	mov ax, CODIGO_EXITO
+	out dx, ax
+fin_and:
 	jmp main
 
 _OR:
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_or
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_or
+	jmp fin_or
+un_elemento_or:
+	call popStack			; vacia la pila
+	jmp fin_or
+exito_or:
+	call popStack	; 
+	mov cx, bx 		; cx operando derecho
+	call popStack	; bx operando izquierdo
+	or bx, cx
+	mov ax, bx
+	call pushStack	; pushea el resultado de la suma
+	mov ax, CODIGO_EXITO
+	out dx, ax
+fin_or:
 	jmp main
 
-LSHIFT:
+LSHIFT:		; REVISAR
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_lshift
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_lshift
+	jmp fin_lshift
+un_elemento_lshift:
+	call popStack			; vacia la pila
+	jmp fin_lshift
+exito_lshift:
+	call popStack	; 
+	mov cx, bx 		; cx operando derecho
+	call popStack	; bx operando izquierdo
+	;idiv bx, cx
+	mov ax, bx
+	call pushStack	; pushea el resultado de la suma
+	mov ax, CODIGO_EXITO
+	out dx, ax
+fin_lshift:
 	jmp main
 
-RSHIFT:
+RSHIFT:		;REVISAR
+	mov dx, [puertoLog]
+	cmp word ptr [tope], 4	; hay dos o mas elementos
+	jae exito_rshift
+	mov ax, CODIGO_FALTA_OPERANDOS
+	out dx, ax
+	cmp word ptr [tope], 2  ; hay un elemento
+	jae un_elemento_rshift
+	jmp fin_rshift
+un_elemento_rshift:
+	call popStack			; vacia la pila
+	jmp fin_rshift
+exito_rshift:
+	call popStack	; 
+	mov cx, bx 		; cx operando derecho
+	call popStack	; bx operando izquierdo
+	;idiv bx, cx
+	mov ax, bx
+	call pushStack	; pushea el resultado de la suma
+	mov ax, CODIGO_EXITO
+	out dx, ax
+fin_rshift:
 	jmp main
 
 CLEAR:
@@ -336,7 +547,7 @@ main:
 	mov ax, CODIGO_NUEVO_COMANDO
 	out dx, ax					; out 0: inicio proceso nuevo comando
 	in ax, ENTRADA				; ax = comando = in(ENTRADA)
-								; esta mal? in recibe un inmediato de 8bits (segun manual) y entrada podria ser de 16
+								; esta mal? in recibe un inmediato de 8bits (segun manual) y entrada podria ser de 16 NO LO VAN A CHEQUEAR
 								; la cartilla dice 1 o 2 bytes asique valdria
 	out dx, ax					; out comando: comando leido
 	
@@ -392,6 +603,56 @@ main:
 
 jmp main	;while true
 
-.ports
-ENTRADA: 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 10, 4, 255
-;1, 1, 1, 2, 5, 7, 5, 5, 8, 4, 7, 8, 4, 255
+.ports 
+ENTRADA: 1, 20, 254, 10, 4, 255
+
+; push 20, clear, sum (deberia poner un 0 en el tope pues la pila esta vacia), tope, fin. EXITO. salida 0
+;1, 20, 254, 10, 4, 255
+; revisar si sum pone 0 en el tope cuando la pila esta vacia
+; division dos neg
+;1, -20, 1, -3, 14, 5, 255
+; division izq pos der neg
+;1, 20, 1, -3, 14, 5, 255
+; division izq neg pos der
+;1, -20, 1, 3, 14, 5, 255
+; division dos positivos
+;1, 20, 1, 3, 14, 5, 255
+; deberia dar 0
+;1, 2, 1, 0000000100000000b, 18, 5, 255
+;1, 15, 1, -3, 13, 5, 255 
+;1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 30, 1, 31, 1, 32,  5, 255
+
+; multiplicacion dos positivos
+;1, 15, 1, 3, 13, 5, 255 
+; multiplicacion dos negativos
+;1, -15, 1, -3, 13, 5, 255
+; multiplicacion izq positivo der negativo
+;1, 15, 1, -3, 13, 5, 255
+; multiplicacion izq negativo der positivo
+;1, -15, 1, 3, 13, 5, 255
+; push 5 y 3, swap, neg, add, top EXITO -2
+;1, 5, 1, 3, 7, 8, 11, 4, 255
+; push 3 y -5, add, top EXITO -2
+;1, 3, 1, -5, 11, 4, 255
+; push 3 y 5, add, top EXITO 8
+;1, 3, 1, 5, 11, 4, 255
+; comando invalido push 2 y top EXITO 2
+;325, 1, 2, 4, 255
+; comando invalido EXITO codigo 2
+;325
+; push 1 a 32, luego clear y top EXITO codigo 8 faltan operandos
+;1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 30, 1, 31, 1, 32, 254, 4, 255
+; factorial de 8 y muestra tope EXITO -25216. rango C2 hasta 2^17 -1 = 32767 < 8! = 40320
+;1, 8, 9, 4, 255
+; factorial de 7 y muestra tope EXITO 5040
+;1, 4, 9, 4, 255
+; muestra tope con pila vacia EXITO
+;4, 255
+; push 1 y 2 y muestra tope EXITO
+;1, 1, 1, 2, 4, 255
+; dump pila vacia EXITO
+;5, 255
+; dump un elemento EXITO
+;1, 4, 5, 255
+; push 1 a 32, luego sum y top EXITO 496
+;1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 30, 1, 31, 1, 32,  10, 4, 255
