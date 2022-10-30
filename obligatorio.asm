@@ -419,14 +419,17 @@ exito_mod:
 	call popStack	
 	mov ax, bx			; ax operando derecho
 	xor dx, dx			; pongo 0 en dx
-	idiv cx				; dx = dx::ax % cx
-	cmp	bx, 0			; si es negativo el operando izquierdo
-	jle operando_neg_mod
-	cmp cx, 0			; o es negativo el operando derecho
-	jle operando_neg_mod
+	cmp ax, 0
+	jl op_izq_neg_mod
+	jmp modulo
+op_izq_neg_mod:
+	neg ax
+	idiv cx
+	neg dx
 	jmp push_resultado_mod
-operando_neg_mod:
-	neg dx				; niego el resultado del modulo
+modulo:
+	idiv cx				; dx = dx::ax % cx
+
 push_resultado_mod:
 	mov ax, dx
 	call pushStack		; pushea ax
@@ -626,7 +629,7 @@ main:
 jmp main	;while true
 
 .ports
-ENTRADA: 1, -25, 1, 7, 15, 4, 255
+ENTRADA: 15, 1, 2, 15, 1, -25, 1, 7, 15, 4, 1, -3, 15, 4, 1, -2, 15, 4, 254, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 63, 1, 31, 15, 2, 15, 5, 255
 
 
 
