@@ -49,9 +49,8 @@ short IN(short puerto) {
 
 #define stack_size 31
 #define ENTRADA 1
-
-short PUERTO_SALIDA_DEFECTO = 2;
-short PUERTO_LOG_DEFECTO = 3;
+#define PUERTO_SALIDA_DEFECTO 2
+#define PUERTO_LOG_DEFECTO 3
 
 struct arrayConTope {
     short tope;
@@ -80,73 +79,75 @@ short fact(short n) {
 int main() {
     short comando;
     short res, n;
+    short puertoSalida = PUERTO_SALIDA_DEFECTO;
+    short puertoLog = PUERTO_LOG_DEFECTO;
 
     while (1) {
         comando = IN(ENTRADA);
-        OUT(PUERTO_LOG_DEFECTO, 0);
-        OUT(PUERTO_LOG_DEFECTO, comando);
+        OUT(puertoLog, 0);
+        OUT(puertoLog, comando);
         switch (comando) {
             case 1: { // NUM(numero)
                 short numero;
                 numero = IN(ENTRADA);
-                OUT(PUERTO_LOG_DEFECTO, numero);
+                OUT(puertoLog, numero);
 
                 if (stack.tope == stack_size) {
                     // codigo de error por desborde
-                    OUT(PUERTO_LOG_DEFECTO, 4);
+                    OUT(puertoLog, 4);
                 } else {
                     push(numero);
                     // codigo exito
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 }
                 break;
             } case 2: { // PORT(puerto)
                 short parametro = IN(ENTRADA);
-                OUT(PUERTO_LOG_DEFECTO, parametro);
-                PUERTO_SALIDA_DEFECTO = parametro;
+                OUT(puertoLog, parametro);
+                puertoSalida = parametro;
 
                 // debugging
                 puertoSalida.direccion = parametro;
 
-                OUT(PUERTO_LOG_DEFECTO, 16);
+                OUT(puertoLog, 16);
                 break;
             } case 3: { // LOG(puerto)
                 short parametro = IN(ENTRADA);
-                OUT(PUERTO_LOG_DEFECTO, parametro);
-                PUERTO_LOG_DEFECTO = parametro;
+                OUT(puertoLog, parametro);
+                puertoLog = parametro;
 
                 // debugging
                 puertoLog.direccion = parametro;
 
-                OUT(PUERTO_LOG_DEFECTO, 16);
+                OUT(puertoLog, 16);
                 break;
             } case 4: { // TOP()
                 if (stack.tope != 0) {
-                    OUT(PUERTO_SALIDA_DEFECTO, stack.data[stack.tope-1]);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoSalida, stack.data[stack.tope-1]);
+                    OUT(puertoLog, 16);
                 } else {
                     // codigo falta operando en la pila
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 5: { // DUMP()
                 short index = stack.tope;
                 while (index > 0) {
                     index--;
-                    OUT(PUERTO_SALIDA_DEFECTO, stack.data[index]);
+                    OUT(puertoSalida, stack.data[index]);
                 }
-                OUT(PUERTO_LOG_DEFECTO, 16);
+                OUT(puertoLog, 16);
                 break;
             } case 6: { // DUP()
                 if (stack.tope == 31) {
                     // codigo de error por desborde
-                    OUT(PUERTO_LOG_DEFECTO, 4);
+                    OUT(puertoLog, 4);
                 } else if (stack.tope == 0) {
                     // codigo de error por falta de operandos
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                    OUT(puertoLog, 8);
                 } else {
                     push(stack.data[stack.tope]);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 }
                 break;
             } case 7: { // SWAP()
@@ -155,45 +156,47 @@ int main() {
                     short topeMenosUno = pop();
                     push(tope);
                     push(topeMenosUno);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                    if (stack.tope == 1) 
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 8: { // NEG()
                 if (stack.tope != 0) {
                     short tope = pop();
                     push(~tope);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 9: { // FACT()
                 if (stack.tope != 0) {
                     res = pop();
                     push( fact(res) );
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 10: { // SUM()
                 short acum = 0;
                 while (stack.tope > 0) acum += pop();
                 push(acum);
-                OUT(PUERTO_LOG_DEFECTO, 16);
+                OUT(puertoLog, 16);
                 break;
             } case 11: { // ADD()
                 if (stack.tope >= 2) {
                     n = pop();  
                     res = pop() + n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop(); // si solo hay un operando la pila queda vacia
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop(); // si solo hay un operando la pila queda vacia
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 12: { // SUBSTRACT()
@@ -201,11 +204,11 @@ int main() {
                     n = pop();
                     res = pop() - n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 13: { // MULTIPLY()
@@ -213,11 +216,11 @@ int main() {
                     n = pop();
                     res = pop() * n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 14: { // DIVIDE()
@@ -225,11 +228,11 @@ int main() {
                     n = pop();
                     res = pop() / n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 15: { // MOD()
@@ -237,11 +240,11 @@ int main() {
                     n = pop();
                     res = pop() % n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 16: { // AND()
@@ -249,11 +252,11 @@ int main() {
                     n = pop();
                     res = pop() & n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 17: { // OR()
@@ -261,11 +264,11 @@ int main() {
                     n = pop();
                     res = pop() | n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 18: { // LSHIFT()
@@ -273,11 +276,11 @@ int main() {
                     n = pop();
                     res = pop() << n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 19: { // RSHIFT()
@@ -285,19 +288,19 @@ int main() {
                     n = pop();
                     res = pop() >> n;
                     push(res);
-                    OUT(PUERTO_LOG_DEFECTO, 16);
+                    OUT(puertoLog, 16);
                 } else {
                     if (stack.tope == 1) 
-                        n = pop();
-                    OUT(PUERTO_LOG_DEFECTO, 8);
+                        pop();
+                    OUT(puertoLog, 8);
                 }
                 break;
             } case 254: {   // CLEAR()
                 stack.tope = 0;
-                OUT(PUERTO_LOG_DEFECTO, 16);
+                OUT(puertoLog, 16);
                 break;
             } case 255: {  // HALT()
-                OUT(PUERTO_LOG_DEFECTO, 16);
+                OUT(puertoLog, 16);
 
                 // debugging
                 imprimirPuertos();
@@ -305,7 +308,7 @@ int main() {
                 while (1) {};
                 break;
             } default: {
-                OUT(PUERTO_LOG_DEFECTO, 2); // código 2 : comando inválido
+                OUT(puertoLog, 2); // código 2 : comando inválido
             }
         }
     }
