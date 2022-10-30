@@ -418,18 +418,15 @@ exito_mod:
 	mov cx, bx 			; cx operando derecho
 	call popStack	
 	mov ax, bx			; ax operando derecho
-	xor dx, dx			; pongo 0 en dx
-	cmp ax, 0
-	jl op_izq_neg_mod
-	jmp modulo
-op_izq_neg_mod:
-	neg ax
-	idiv cx
-	neg dx
-	jmp push_resultado_mod
-modulo:
-	idiv cx				; dx = dx::ax % cx
 
+	cmp ax, 0
+	jl modulo_negativo
+	xor dx, dx			; si el dividendo es positivo cargo 0 en dx
+	jmp modulo
+modulo_negativo:
+	mov dx, 0xffff		; si el dividendo es negativo cargo 0xffff en dx
+modulo:
+	idiv cx
 push_resultado_mod:
 	mov ax, dx
 	call pushStack		; pushea ax
@@ -629,7 +626,7 @@ main:
 jmp main	;while true
 
 .ports
-ENTRADA: 15, 1, 2, 15, 1, -25, 1, 7, 15, 4, 1, -3, 15, 4, 1, -2, 15, 4, 254, 1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 63, 1, 31, 15, 2, 15, 5, 255
+ENTRADA: 1,25,1,-7,15,4,255
 
 
 
