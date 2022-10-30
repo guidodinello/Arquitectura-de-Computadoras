@@ -501,12 +501,12 @@ exito_lshift:
 	mov cx, bx 		; cx operando derecho
 	call popStack	; bx operando izquierdo
 	cmp ch, 0		; si la parte alta de cx es distinta de 0, el op. der. es negativo o mayor a 15
-	je shifteo_menor_a_16
+	jne lshift_neg_o_mayor_a_16
 	sal bx, cl		; bx = bx << cx (conservando el signo)
 	mov ax, bx
 	jmp push_resultado_lshift
-shifteo_menor_a_16:
-	mov ax, 0
+lshift_neg_o_mayor_a_16:
+	mov ax, 0		; shiftear 16 o mas pos un num pos es dejarlo en 0
 push_resultado_lshift:
 	call pushStack	; pushea el resultado de la suma
 	mov ax, CODIGO_EXITO
@@ -528,10 +528,16 @@ un_elemento_rshift:
 	jmp fin_rshift
 exito_rshift:
 	call popStack	; 
-	mov cl, bl 		; cx operando derecho
+	mov cx, bx 		; cx operando derecho
 	call popStack	; bx operando izquierdo
+	cmp ch, 0		; si la parte alta de cx es distinta de 0, el op. der. es negativo o mayor a 15
+	jne rshift_neg_o_mayor_a_16	
 	sar bx, cl		; bx = bx >> cx (conservando el signo)
 	mov ax, bx
+	jmp push_resultado_rshift
+rshift_neg_o_mayor_a_16:
+	mov ax, -1		; ???
+push_resultado_rshift:
 	call pushStack	; pushea el resultado de la suma
 	mov ax, CODIGO_EXITO
 	out dx, ax
@@ -620,7 +626,8 @@ main:
 jmp main	;while true
 
 .ports
-ENTRADA: 1, -5, 1, -2, 15, 4, 255
+ENTRADA: 1, -25, 1, 7, 15, 4, 255
+
 
 
 ;1, -8, 1, 4097, 19, 4, 255
@@ -638,3 +645,6 @@ ENTRADA: 1, -5, 1, -2, 15, 4, 255
 ; -5 mod -3 = -2 EXITO
 ;1, -5, 1, -3, 15, 4, 255
 ; ERROR EN MOD VER CASO DE TEST 51, 
+
+; REFERENCIAS
+; MOD TEST 51, -25 mod 7 me da 4 y deberia ser -4
