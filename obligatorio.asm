@@ -499,13 +499,13 @@ exito_lshift:
 	call popStack	; 
 	mov cx, bx 		; cx operando derecho
 	call popStack	; bx operando izquierdo
-	cmp ch, 0		; si la parte alta de cx es distinta de 0, el op. der. es negativo o mayor a 15
-	jne lshift_neg_o_mayor_a_16
+	cmp cx, 16		; si shifteamos 16 lugares o mas el resultado, debe ser 0
+	jge lshift_mayor_a_16	
 	sal bx, cl		; bx = bx << cx (conservando el signo)
 	mov ax, bx
 	jmp push_resultado_lshift
-lshift_neg_o_mayor_a_16:
-	mov ax, 0		; shiftear 16 o mas pos un num pos es dejarlo en 0
+lshift_mayor_a_16:
+	mov ax, 0		; shiftear 16 o mas pos un num es dejarlo en 0
 push_resultado_lshift:
 	call pushStack	; pushea el resultado de la suma
 	mov ax, CODIGO_EXITO
@@ -529,13 +529,18 @@ exito_rshift:
 	call popStack	; 
 	mov cx, bx 		; cx operando derecho
 	call popStack	; bx operando izquierdo
-	cmp ch, 0		; si la parte alta de cx es distinta de 0, el op. der. es negativo o mayor a 15
-	jne rshift_neg_o_mayor_a_16	
+	cmp cx, 16		; si shifteamos 16 o mas lugares el resultado, debe ser -1 si b<0 o 0 si b>=0 
+	jge rshift_mayor_a_16	
 	sar bx, cl		; bx = bx >> cx (conservando el signo)
 	mov ax, bx
 	jmp push_resultado_rshift
-rshift_neg_o_mayor_a_16:
-	mov ax, -1		; ???
+rshift_mayor_a_16:
+	cmp bx, 0 
+	jge operando_izq_pos_rshift
+	mov ax, -1
+	jmp push_resultado_rshift
+operando_izq_pos_rshift:
+	mov ax, 0
 push_resultado_rshift:
 	call pushStack	; pushea el resultado de la suma
 	mov ax, CODIGO_EXITO
@@ -624,9 +629,7 @@ main:
 jmp main	;while true
 
 .ports
-ENTRADA: 1, 0x7FFF, 1, 256, 19, 4, 255  
-
-
+ENTRADA: 1, 1, 1, 4097, 18, 4, 255
 
 
 ;1, -8, 1, 4097, 19, 4, 255

@@ -41,7 +41,7 @@ void OUT(short puerto, short dato) {
     }
 }
 short entrada[255] = {
-    1, 32767, 1, 256, 19, 4, 255
+    1, 1, 1, 4097, 18, 4, 255
 };
 short entrada_index = 0;
 short IN(short puerto) {
