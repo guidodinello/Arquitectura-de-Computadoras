@@ -16,9 +16,9 @@ CODIGO_NUEVO_COMANDO EQU 0
 ; jmp estructura_aritmeticas
 ;	... add/sub/imul/ ...
 
-ENTRADA EQU 1
-PUERTO_SALIDA_DEFECTO EQU 2
-PUERTO_LOG_DEFECTO EQU 3
+ENTRADA EQU 10
+PUERTO_SALIDA_DEFECTO EQU 1
+PUERTO_LOG_DEFECTO EQU 2
 STACK_SIZE EQU 31
 
 stack DW DUP(STACK_SIZE) 0
@@ -132,7 +132,7 @@ exito_top:							; else
 	mov di, [tope]					; di = tope
 	sub di, 2						; di = tope - 1
 	mov bx, offset stack
-	mov ax, [bx+di]				; ax = stack[tope]
+	mov ax, [bx+di]					; ax = stack[tope]
 	mov dx, [puertoSalida]			; dx = puertoSalida
 	out dx, ax						; out en salida del tope de la pila
 	mov ax, CODIGO_EXITO			; ax = 16
@@ -418,7 +418,6 @@ exito_mod:
 	mov cx, bx 			; cx operando derecho
 	call popStack	
 	mov ax, bx			; ax operando derecho
-
 	cmp ax, 0
 	jl modulo_negativo
 	xor dx, dx			; si el dividendo es positivo cargo 0 en dx
@@ -559,7 +558,6 @@ HALT:
 	mov ax, CODIGO_EXITO
 	mov dx, [puertoLog]
 	out dx, ax							; out 16 en Bitacora: comando procesado con exito
-	hlt	
 halt_loop:
 	jmp halt_loop
 
@@ -626,7 +624,8 @@ main:
 jmp main	;while true
 
 .ports
-ENTRADA: 1,25,1,-7,15,4,255
+ENTRADA: 1, 0x7FFF, 1, 256, 19, 4, 255  
+
 
 
 

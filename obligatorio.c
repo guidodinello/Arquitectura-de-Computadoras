@@ -4,6 +4,11 @@
 > ./obligatorio
 */
 
+#define stack_size 31
+#define PUERTO_SALIDA_DEFECTO 1
+#define PUERTO_LOG_DEFECTO 2
+#define ENTRADA 3
+
 /* Esta seccion es con fines de debugging, refiere al testing y la impresion de los puertos */
 typedef struct puertos {
     char* nombre;
@@ -11,9 +16,9 @@ typedef struct puertos {
     short cant_datos;
     short info[255];
 } puerto;
-puerto puertoSalida = (puerto){ .nombre = "Salida", .direccion = 2, .cant_datos = 0, .info = {0} };
-puerto puertoLog = (puerto){ .nombre = "Bitacora", .direccion = 3, .cant_datos = 0, .info = {0} }; 
-puerto* puertos[2] = {&puertoLog, &puertoSalida};
+puerto arregloPuertoSalida = (puerto){ .nombre = "Salida", .direccion = PUERTO_SALIDA_DEFECTO, .cant_datos = 0, .info = {0} };
+puerto arregloPuertoLog = (puerto){ .nombre = "Bitacora", .direccion = PUERTO_LOG_DEFECTO, .cant_datos = 0, .info = {0} }; 
+puerto* puertos[2] = {&arregloPuertoLog, &arregloPuertoSalida};
 void imprimirPuertos() {
     int cant_puertos = sizeof(puertos) / sizeof(puerto*);
     for (int i=0; i < cant_puertos; i++) {
@@ -25,17 +30,18 @@ void imprimirPuertos() {
     printf("\n");
 }
 void OUT(short puerto, short dato) {
-    if (puerto == puertoLog.direccion) {
-        puertoLog.info[puertoLog.cant_datos] = dato;
-        puertoLog.cant_datos++;
-    } else if (puerto == puertoSalida.direccion) {
-        puertoSalida.info[puertoSalida.cant_datos] = dato;
-        puertoSalida.cant_datos++;
+    if (puerto == arregloPuertoLog.direccion) {
+        arregloPuertoLog.info[arregloPuertoLog.cant_datos] = dato;
+        arregloPuertoLog.cant_datos++;
+    } else if (puerto == arregloPuertoSalida.direccion) {
+        arregloPuertoSalida.info[arregloPuertoSalida.cant_datos] = dato;
+        arregloPuertoSalida.cant_datos++;
+    } else {
+        printf("Error: Puerto %hu no existe.\n", puerto);
     }
 }
 short entrada[255] = {
-    //2, 15, 1, 14, 1, 3, 1, 4, 5, 11, 14, 1, 1, 11, 4, 255
-    1, 1, 1, 2, 1, 3, 1, 4, 1, 5, 1, 6, 1, 7, 1, 8, 1, 9, 1, 10, 1, 11, 1, 12, 1, 13, 1, 14, 1, 15, 1, 16, 1, 17, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 1, 26, 1, 27, 1, 28, 1, 29, 1, 30, 1, 31, 1, 32,  5, 255
+    1, 32767, 1, 256, 19, 4, 255
 };
 short entrada_index = 0;
 short IN(short puerto) {
@@ -45,12 +51,6 @@ short IN(short puerto) {
 }
 /* */
 
-// ARREGLAR PORT Y LOG, ESTOY ASIGNANDO A LO QUE DEBERIA SER UNA CONSTANTE, LOS DEFECTO SON CONSTANTES
-
-#define stack_size 31
-#define ENTRADA 1
-#define PUERTO_SALIDA_DEFECTO 2
-#define PUERTO_LOG_DEFECTO 3
 
 struct arrayConTope {
     short tope;
@@ -107,7 +107,7 @@ int main() {
                 puertoSalida = parametro;
 
                 // debugging
-                puertoSalida.direccion = parametro;
+                arregloPuertoSalida.direccion = parametro;
 
                 OUT(puertoLog, 16);
                 break;
@@ -117,7 +117,7 @@ int main() {
                 puertoLog = parametro;
 
                 // debugging
-                puertoLog.direccion = parametro;
+                arregloPuertoLog.direccion = parametro;
 
                 OUT(puertoLog, 16);
                 break;
