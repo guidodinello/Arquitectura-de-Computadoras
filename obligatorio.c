@@ -41,7 +41,8 @@ void OUT(short puerto, short dato) {
     }
 }
 short entrada[255] = {
-    1, 1, 1, 4097, 18, 4, 255
+    //1,1, 1,2, 1,3, 1,4, 1,5, 1,1, 1,9, 1,8, 1,-1400, 1,10, 1,11, 1,12, 1,13, 11, 4, 12, 4, 13, 4, 14, 4, 15, 4, 16, 4, 17, 4, 18, 4, 7, 4, 19, 4, 10, 4, 8, 4, 6, 5, 254, 255 
+    1, 1, 8, 4, 1, 2, 8, 4, 1, -1, 8, 4, 1, -2, 8, 4, 255
 };
 short entrada_index = 0;
 short IN(short puerto) {
@@ -166,7 +167,7 @@ int main() {
             } case 8: { // NEG()
                 if (stack.tope != 0) {
                     short tope = pop();
-                    push(~tope);
+                    push(-tope);
                     OUT(puertoLog, 16);
                 } else {
                     OUT(puertoLog, 8);

@@ -1,33 +1,27 @@
 .data
-#define DS 100h
+#define DS 500h
 
+; codigos de la bitacora
 CODIGO_EXITO EQU 16
 CODIGO_FALTA_OPERANDOS EQU 8
 CODIGO_DESBORDAMIENTO EQU 4
 CODIGO_COMANDO_INVALIDO EQU 2
 CODIGO_NUEVO_COMANDO EQU 0
 
-; ver si deberia en vez de in ax, ENTRADA
-; hacer mov registro, ENTRADA
-; luego in ax, registro
-
-; las aritmeticas tienen todas la misma estructura
-; ver si se puede factorizar y que solo se distingan en la llamada a la operacion
-; jmp estructura_aritmeticas
-;	... add/sub/imul/ ...
-
+; constantes iniciales para los puertos
 ENTRADA EQU 10
 PUERTO_SALIDA_DEFECTO EQU 1
 PUERTO_LOG_DEFECTO EQU 2
-STACK_SIZE EQU 31
 
-stack DW DUP(STACK_SIZE) 0
-tope dw 0  						; aca seria mas correcto usar un db, pero no es necesario
-
-DOBLE_STACK_SIZE EQU STACK_SIZE*2	; servira para chequear si la pila esta llena
-
+; variables de los puertos
 puertoLog dw PUERTO_LOG_DEFECTO
 puertoSalida dw PUERTO_SALIDA_DEFECTO
+
+; variables y constantes referidas a la estructura stack utilizada
+STACK_SIZE EQU 31
+stack DW DUP(STACK_SIZE) ?
+tope dw 0  						
+DOBLE_STACK_SIZE EQU STACK_SIZE*2	; servira para chequear si la pila esta llena
 
 .code
 	jmp main
@@ -237,7 +231,7 @@ exito_neg:							; else
 	call popStack					; bx = stack[tope]
 	neg bx							; 
 	mov ax, bx						; 
-	call pushStack					; push(~tope)
+	call pushStack					; push(-tope)
 	mov ax, CODIGO_EXITO			; ax = 16
 	out dx, ax						; out 16 : proceso exitoso		
 	pop bx			
@@ -355,7 +349,6 @@ un_elemento_multiply:
 	call popStack			; vacia la pila
 	jmp fin_add
 exito_multiply:
-	xor dx, dx				; ES NECESARIO? imul lo sobreescribe de todas formas
 	call popStack
 	mov cx, bx				; cx operando derecho
 	call popStack
@@ -426,7 +419,6 @@ modulo_negativo:
 	mov dx, 0xffff		; si el dividendo es negativo cargo 0xffff en dx
 modulo:
 	idiv cx
-push_resultado_mod:
 	mov ax, dx
 	call pushStack		; pushea ax
 	mov ax, CODIGO_EXITO
@@ -483,7 +475,7 @@ exito_or:
 fin_or:
 	jmp main
 
-LSHIFT:		; REVISAR
+LSHIFT:
 	mov dx, [puertoLog]
 	cmp word ptr [tope], 4	; hay dos o mas elementos
 	jge exito_lshift
@@ -496,24 +488,24 @@ un_elemento_lshift:
 	call popStack			; vacia la pila
 	jmp fin_lshift
 exito_lshift:
-	call popStack	; 
-	mov cx, bx 		; cx operando derecho
-	call popStack	; bx operando izquierdo
-	cmp cx, 16		; si shifteamos 16 lugares o mas el resultado, debe ser 0
+	call popStack			; 
+	mov cx, bx 				; cx operando derecho
+	call popStack			; bx operando izquierdo
+	cmp cx, 16				; si shifteamos 16 lugares o mas el resultado, debe ser 0
 	jge lshift_mayor_a_16	
-	sal bx, cl		; bx = bx << cx (conservando el signo)
+	sal bx, cl				; bx = bx << cx (conservando el signo)
 	mov ax, bx
 	jmp push_resultado_lshift
 lshift_mayor_a_16:
-	mov ax, 0		; shiftear 16 o mas pos un num es dejarlo en 0
+	mov ax, 0				; shiftear 16 o mas pos un num es dejarlo en 0
 push_resultado_lshift:
-	call pushStack	; pushea el resultado de la suma
+	call pushStack			; pushea el resultado de la suma
 	mov ax, CODIGO_EXITO
 	out dx, ax
 fin_lshift:
 	jmp main
 
-RSHIFT:		;REVISAR
+RSHIFT:
 	mov dx, [puertoLog]
 	cmp word ptr [tope], 4	; hay dos o mas elementos
 	jge exito_rshift
@@ -526,12 +518,12 @@ un_elemento_rshift:
 	call popStack			; vacia la pila
 	jmp fin_rshift
 exito_rshift:
-	call popStack	; 
-	mov cx, bx 		; cx operando derecho
-	call popStack	; bx operando izquierdo
-	cmp cx, 16		; si shifteamos 16 o mas lugares el resultado, debe ser -1 si b<0 o 0 si b>=0 
+	call popStack			; 
+	mov cx, bx 				; cx operando derecho
+	call popStack			; bx operando izquierdo
+	cmp cx, 16				; si shifteamos 16 o mas lugares el resultado, debe ser -1 si b<0 o 0 si b>=0 
 	jge rshift_mayor_a_16	
-	sar bx, cl		; bx = bx >> cx (conservando el signo)
+	sar bx, cl				; bx = bx >> cx (conservando el signo)
 	mov ax, bx
 	jmp push_resultado_rshift
 rshift_mayor_a_16:
@@ -542,7 +534,7 @@ rshift_mayor_a_16:
 operando_izq_pos_rshift:
 	mov ax, 0
 push_resultado_rshift:
-	call pushStack	; pushea el resultado de la suma
+	call pushStack			; pushea el resultado de la suma
 	mov ax, CODIGO_EXITO
 	out dx, ax
 fin_rshift:
@@ -553,8 +545,8 @@ CLEAR:
 	push dx
 	mov ax, CODIGO_EXITO
 	mov dx, [puertoLog]
-	out dx, ax							; out 16 en Bitacora: comando procesado con exito
-	mov word ptr [tope], 0				; tope = 0 (borrado logico)
+	out dx, ax				; out 16 en Bitacora: comando procesado con exito
+	mov word ptr [tope], 0	; tope = 0 (borrado logico)
 	pop dx
 	pop ax
 	jmp main
@@ -562,7 +554,7 @@ CLEAR:
 HALT:
 	mov ax, CODIGO_EXITO
 	mov dx, [puertoLog]
-	out dx, ax							; out 16 en Bitacora: comando procesado con exito
+	out dx, ax				; out 16 en Bitacora: comando procesado con exito
 halt_loop:
 	jmp halt_loop
 
@@ -572,8 +564,6 @@ main:
 	mov ax, CODIGO_NUEVO_COMANDO
 	out dx, ax					; out 0: inicio proceso nuevo comando
 	in ax, ENTRADA				; ax = comando = in(ENTRADA)
-								; esta mal? in recibe un inmediato de 8bits (segun manual) y entrada podria ser de 16 NO LO VAN A CHEQUEAR
-								; la cartilla dice 1 o 2 bytes asique valdria
 	out dx, ax					; out comando: comando leido
 	
 	cmp ax,1
@@ -629,24 +619,4 @@ main:
 jmp main	;while true
 
 .ports
-ENTRADA: 1, 1, 1, 4097, 18, 4, 255
-
-
-;1, -8, 1, 4097, 19, 4, 255
-; shifteo con 20
-;1, -8, 1, 20, 19, 4, 255
-; rango complemento a 2 : 2^(n-1) -1 = 32767 = 0x7fff = 0111 1111 1111 1111
-; 4095 << 15 = -32768 ?
-;1, 0x0fff, 1, 15, 18, 4, 255
-; 5 mod 3 = 2 EXITO
-;1, 5, 1, 3, 15, 4, 255
-; 5 mod -3 = -2 ??? wolfram dice 1
-;1, 5, 1, -3, 15, 4, 255
-; -5 mod 3 = -2 ??? wolfram dice 1
-;1, -5, 1, 3, 15, 4, 255
-; -5 mod -3 = -2 EXITO
-;1, -5, 1, -3, 15, 4, 255
-; ERROR EN MOD VER CASO DE TEST 51, 
-
-; REFERENCIAS
-; MOD TEST 51, -25 mod 7 me da 4 y deberia ser -4
+ENTRADA: 1, 3, 1, -8, 13, 4, 255
