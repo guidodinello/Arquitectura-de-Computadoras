@@ -619,4 +619,4 @@ main:
 jmp main	;while true
 
 .ports
-ENTRADA: 1, 3, 1, -8, 13, 4, 255
+ENTRADA: 255
